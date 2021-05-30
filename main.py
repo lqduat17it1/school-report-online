@@ -7,6 +7,7 @@ from ui_mainSearch import *
 from ui_soResult import *
 from ui_tenResult import *
 from ui_hosoResult import *
+from ui_detail import *
 
 class Main(QMainWindow):
     def __init__(self):
@@ -26,7 +27,11 @@ class Main(QMainWindow):
         self.hosoUI = Ui_hosoResultWidget()
         self.hosoUI.setupUi(self.hosoResultWin)
 
-        self.listServer = ["DUAT", "DUAT\DUAT01", "DUAT\DUAT02"]
+        self.detailWin = QWidget()
+        self.detailUI = Ui_DetailWidget()
+        self.detailUI.setupUi(self.detailWin)
+
+        self.listServer = ["DESKTOP-2RT3LOI\DUATLE1", "DESKTOP-2RT3LOI\DUATLE2", "DESKTOP-2RT3LOI\DUATLE3"]
         self.getDB()
 
         self.ui.TimButton.clicked.connect(self.TimKiem)
@@ -34,13 +39,13 @@ class Main(QMainWindow):
     def connectDB(self, server):
         self.conn = pyodbc.connect('Driver={SQL Server};'
                             'Server='+server+';'
-                            'Database=HOCBADIENTU;'
+                            'Database=HBDT;'
                             'Trusted_Connection=yes;')
 
     def getDB(self):
         self.connectDB(self.listServer[0])
 
-        sql = "SELECT MaSo, Ten FROM SoGiaoDuc"
+        sql = "SELECT MaSo, TenSo FROM SoGiaoDuc"
         result = self.conn.execute(sql)
         self.ui.SogiaoducCombobox.addItem("Chọn Sở giáo dục")
         for row_number, row_data in enumerate(result):
@@ -63,7 +68,7 @@ class Main(QMainWindow):
     def TimKiemTheoSo(self, maso):
         self.connectDB(self.listServer[0])
 
-        sql = "SELECT HocBa.MaHB, HocSinh.TenHS, HocSinh.DiaChi, SoGiaoDuc.Ten FROM HocBa JOIN HocSinh ON HocBa.MaHS=HocSinh.MaHS JOIN SoGiaoDuc ON HocBa.MaSo=SoGiaoDuc.MaSo WHERE SoGiaoDuc.MaSo="+str(maso)+""
+        sql = "SELECT HocBa.MaHB, HocSinh.TenHS, HocSinh.DiaChi, SoGiaoDuc.TenSo FROM HocBa JOIN HocSinh ON HocBa.MaHB=HocSinh.MaHB JOIN SoGiaoDuc ON HocBa.MaSo=SoGiaoDuc.MaSo WHERE SoGiaoDuc.MaSo="+str(maso)+""
         result = self.conn.execute(sql)
         self.soUI.tableWidget.setRowCount(0)
         for row_number, row_data in enumerate(result):
@@ -80,22 +85,27 @@ class Main(QMainWindow):
     def TimKiemTheoMaHocBa(self, mahocba):
         self.connectDB(self.listServer[0])
 
-        sql = "SELECT HocBa.MaHB, HocSinh.TenHS, HocSinh.NgaySinh, HocSinh.GioiTinh, HocSinh.DiaChi, SoGiaoDuc.Ten FROM HocBa JOIN HocSinh ON HocBa.MaHS=HocSinh.MaHS JOIN SoGiaoDuc ON HocBa.MaSo=SoGiaoDuc.MaSo WHERE HocSinh.MaHS="+str(mahocba)+""
+        sql = "SELECT HocBa.MaHB, HocSinh.TenHS, HocSinh.NgaySinh, HocSinh.GioiTinh, HocSinh.DiaChi, SoGiaoDuc.TenSo FROM HocBa JOIN HocSinh ON HocBa.MaHB=HocSinh.MaHB JOIN SoGiaoDuc ON HocBa.MaSo=SoGiaoDuc.MaSo WHERE HocBa.MaHB="+str(mahocba)+""
         result = self.conn.execute(sql)
         for row_number, row_data in enumerate(result):
             self.hosoUI.MahocbaLabel.setText(str(row_data[0]))
             self.hosoUI.TenhocsinhLabel.setText(str(row_data[1]))
             self.hosoUI.NgaysinhLabel.setText(str(row_data[2]))
-            self.hosoUI.GioitinhLabel.setText(str(row_data[3]))
+            if row_data[3] == 1:
+                self.hosoUI.GioitinhLabel.setText("Nam")
+            else:
+                self.hosoUI.GioitinhLabel.setText("Nữ")
             self.hosoUI.DiachiLabel.setText(str(row_data[4]))
             self.hosoUI.SogiaoducLabel.setText(str(row_data[5]))
+
+        self.hosoUI.XemhosochitietButton.clicked.connect(lambda:self.XemChiTietHocBa(mahocba))
         self.hosoResultWin.show()
         self.conn.close()
 
     def TimKiemTheoTenHocSinh(self, tenhocsinh):
         self.connectDB(self.listServer[0])
 
-        sql = "SELECT HocBa.MaHB, HocSinh.TenHS, HocSinh.DiaChi, SoGiaoDuc.Ten FROM HocBa JOIN HocSinh ON HocBa.MaHS=HocSinh.MaHS JOIN SoGiaoDuc ON HocBa.MaSo=SoGiaoDuc.MaSo WHERE HocSinh.TenHS LIKE '%"+tenhocsinh+"%'"
+        sql = "SELECT HocBa.MaHB, HocSinh.TenHS, HocSinh.DiaChi, SoGiaoDuc.TenSo FROM HocBa JOIN HocSinh ON HocBa.MaHB=HocSinh.MaHB JOIN SoGiaoDuc ON HocBa.MaSo=SoGiaoDuc.MaSo WHERE HocSinh.TenHS LIKE '%"+tenhocsinh+"%'"
         result = self.conn.execute(sql)
         self.tenUI.tableWidget.setRowCount(0)
         self.tenUI.TenhocsinhLabel.setText(tenhocsinh)
@@ -107,6 +117,25 @@ class Main(QMainWindow):
             for column_number, data in enumerate(row_data):
                 self.tenUI.tableWidget.setItem(row_number, column_number, QtWidgets.QTableWidgetItem(str(data)))
         self.tenResultWin.show()
+        self.conn.close()
+
+    def XemChiTietHocBa(self, mahocba):
+        self.connectDB(self.listServer[0])
+
+        sql1 = "SELECT HocSinh.TenHS, SoGiaoDuc.TenSo FROM HocBa JOIN SoGiaoDuc ON HocBa.MaSo = SoGiaoDuc.MaSo JOIN HocSinh ON HocBa.MaHB = HocSinh.MaHB WHERE HocBa.MaHB = "+str(mahocba)+""
+        result1 = self.conn.execute(sql1)
+        for row_number, row_data in enumerate(result1):
+            self.detailUI.SoGiaoDucLabel.setText(str(row_data[1]))
+            self.detailUI.TenHSLabel.setText(str(row_data[0]))
+
+        sql2 = "SELECT MonHoc.TenMH, MonHoc.Khoi, Diem.Diem, Diem.Loai, GiaoVien.TenGV FROM MHLHS JOIN HocSinh ON MHLHS.MaHS = HocSinh.MaHS JOIN MonHoc ON MHLHS.MaMH = MonHoc.MaMH JOIN Diem ON MHLHS.MaMHLHS = Diem.MaMHLHS JOIN GiaoVien ON MonHoc.MaGV = GiaoVien.MaGV WHERE HocSinh.MaHB = "+str(mahocba)+""
+        result2 = self.conn.execute(sql2)
+        self.detailUI.tableWidget.setRowCount(0)
+        for row_number, row_data in enumerate(result2):
+            self.detailUI.tableWidget.insertRow(row_number)
+            for column_number, data in enumerate(row_data):
+                self.detailUI.tableWidget.setItem(row_number, column_number, QtWidgets.QTableWidgetItem(str(data)))
+        self.detailWin.show()
         self.conn.close()
 
 if __name__ == '__main__':
